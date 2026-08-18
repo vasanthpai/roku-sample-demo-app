@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="DemoScene" extends="Scene">
+    <script type="text/brightscript" uri="DemoScene.brs" />
+    <children>
+        <!-- id becomes the node prefix: "rbp" -> rbp:rbpPlayerFacade -->
+        <ComponentLibrary id="rbp" />
+
+        <Label id="titleLabel" text="RoboPlayer SDK - validation"
+               translation="[80, 60]" color="0xFFFFFFFF"
+               font="font:MediumBoldSystemFont" />
+
+        <Label id="statusLabel" text="starting..."
+               translation="[80, 110]" color="0x9CA3AFFF"
+               font="font:SmallestSystemFont" />
+
+        <Label id="resultsLabel" text="" wrap="true"
+               width="1000" translation="[80, 160]"
+               color="0xE5E7EBFF" font="font:SmallestSystemFont" />
+
+        <!-- The Facade is a Group - it IS the player view. -->
+        <Group id="playerHost" translation="[0, 0]" />
+    </children>
+</component>
