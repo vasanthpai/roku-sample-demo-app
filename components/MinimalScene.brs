@@ -54,7 +54,8 @@ sub startPlayer()
     ' STEP 5 - watch what the player reports.
     m.player.observeField("playerState", "onState")
     m.player.observeField("position", "onPosition")
-    print "[min] 5. observing playerState and position"
+    m.player.observeField("analyticsEvents", "onAnalytics")
+    print "[min] 5. observing playerState, position and analyticsEvents"
 
     ' STEP 6 - load a media item. Only url is required; format is inferred.
     result = m.player.callFunc("load", {
@@ -79,6 +80,22 @@ end sub
 
 sub onPosition(evt as object)
     print "[min]    position -> " + Str(evt.getData()).Trim()
+end sub
+
+
+' Analytics. Forward these to your own tracking - the SDK integrates no vendor.
+'
+' NOTE: this is a BATCH, not one event. A single transition can produce two
+' (bufferEnd + seekEnd), and SceneGraph coalesces rapid writes to a field, so
+' the SDK delivers everything that fired in one notification. Reading
+' evt.getData().name would silently give you nothing.
+sub onAnalytics(evt as object)
+    batch = evt.getData()
+    if batch = invalid or batch.events = invalid then return
+
+    for each payload in batch.events
+        print "[min]    EVENT " + payload.name + " pos=" + Str(payload.position).Trim() + "s state=" + payload.state
+    end for
 end sub
 
 

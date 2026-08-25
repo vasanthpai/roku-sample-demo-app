@@ -196,6 +196,16 @@ sub runChecks()
     facade.observeField("isSeeking", "onSeeking")
     facade.observeField("sessionStats", "onStats")
 
+    ' ---- P4: analytics ------------------------------------------------
+    if facade.hasField("analyticsEvents")
+        pass("field exposed: analyticsEvents")
+    else
+        fail("field missing: analyticsEvents")
+    end if
+
+    m.lastSequence = 0
+    facade.observeField("analyticsEvents", "onAnalytics")
+
     r = facade.callFunc("play", invalid)
     if r <> invalid and r.ok = true
         pass("play() accepted")
@@ -327,6 +337,24 @@ end sub
 sub onStats(evt as object)
     s = evt.getData()
     addLine("      stats: startup=" + Str(s.startupMs).Trim() + "ms rebuffers=" + Str(s.rebufferCount).Trim() + " stalled=" + Str(s.rebufferMs).Trim() + "ms dropped=" + Str(s.droppedCount).Trim())
+end sub
+
+
+' What a client's analytics integration looks like: read the batch, forward
+' each payload, and use the sequence to notice if a notification was missed.
+sub onAnalytics(evt as object)
+    batch = evt.getData()
+    if batch = invalid or batch.events = invalid then return
+
+    expected = m.lastSequence + 1
+    if batch.sequence <> expected and m.lastSequence > 0
+        addLine("      !! analytics gap: expected #" + Str(expected).Trim() + " got #" + Str(batch.sequence).Trim())
+    end if
+    m.lastSequence = batch.sequence
+
+    for each p in batch.events
+        addLine("      EVENT " + p.name + " pos=" + Str(p.position).Trim() + "s state=" + p.state)
+    end for
 end sub
 
 
