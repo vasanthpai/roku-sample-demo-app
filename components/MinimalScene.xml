@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Minimal RoboPlayer SDK integration.
+
+    The smallest correct client. Everything here is required; nothing is
+    decoration. Watch the console for the flow:  telnet <ROKU_IP> 8085
+
+    Note that uri is NOT set here - MinimalScene.brs sets it after the
+    loadStatus observer is registered.
+-->
+<component name="MinimalScene" extends="Scene">
+    <script type="text/brightscript" uri="MinimalScene.brs" />
+    <children>
+        <ComponentLibrary id="rbp" />
+    </children>
+</component>

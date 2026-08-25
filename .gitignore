@@ -3,4 +3,10 @@ build/
 *.log
 .DS_Store
 Thumbs.db
-*.zip
+
+# demo package, rebuilt by `make build`
+demo.zip
+
+# vendor/ IS committed on purpose - it pins the exact SDK build
+# this demo was validated against
+!vendor/*.zip

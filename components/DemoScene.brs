@@ -182,6 +182,19 @@ sub runChecks()
     facade.observeField("playerState", "onPlayerState")
     facade.observeField("position", "onPlayerPosition")
     facade.observeField("duration", "onPlayerDuration")
+    facade.observeField("errorInfo", "onError")
+
+    ' ---- P3: session state --------------------------------------------
+    for each fieldName in ["isSeeking", "positionInterval", "sessionStats"]
+        if facade.hasField(fieldName)
+            pass("field exposed: " + fieldName)
+        else
+            fail("field missing: " + fieldName)
+        end if
+    end for
+
+    facade.observeField("isSeeking", "onSeeking")
+    facade.observeField("sessionStats", "onStats")
 
     r = facade.callFunc("play", invalid)
     if r <> invalid and r.ok = true
@@ -190,6 +203,7 @@ sub runChecks()
         fail("play() failed")
     end if
 
+    m.mediaIndex = 0
     addLine("      watching state/position - video should appear")
 end sub
 
@@ -246,11 +260,83 @@ sub onPlayerDuration(evt as object)
     addLine("      duration -> " + Str(evt.getData()).Trim() + "s")
 end sub
 
+' ==========================================================================
+' FORMAT VERIFICATION
+'
+' The SDK claims HLS, DASH, ISM and MP4. inferFormat() is unit tested, but a
+' format only counts as supported once it has actually played on hardware.
+'
+' These are public test streams and may move or disappear - if one fails,
+' check the URL in a browser before assuming the SDK is at fault.
+' ==========================================================================
+function MEDIA_ITEMS() as object
+    return [
+        {
+            label: "HLS"
+            title: "Bip Bop (HLS)"
+            url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8"
+        }
+        {
+            label: "DASH"
+            title: "Big Buck Bunny (DASH)"
+            url: "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"
+        }
+        {
+            label: "MP4"
+            title: "Sintel trailer (MP4)"
+            url: "https://media.w3.org/2010/05/sintel/trailer.mp4"
+        }
+    ]
+end function
+
+
+sub loadMedia(index as integer)
+    items = MEDIA_ITEMS()
+    if index < 0 or index >= items.count() then return
+
+    m.mediaIndex = index
+    item = items[index]
+    addLine("      --- loading " + item.label + " ---")
+
+    r = m.facade.callFunc("load", { url: item.url, title: item.title })
+    if r = invalid or r.ok <> true
+        msg = "load returned invalid"
+        if r <> invalid then msg = r.code + " " + r.message
+        fail(item.label + " load rejected: " + msg)
+        return
+    end if
+
+    ' The format the SDK inferred from the url - the thing being verified.
+    pass(item.label + " load ok, format=" + m.facade.mediaItem.format)
+    m.facade.callFunc("play", invalid)
+end sub
+
+
+sub onError(evt as object)
+    e = evt.getData()
+    if e = invalid or e.code = invalid or e.code = "none" then return
+    addLine("      ERROR " + e.code + ": " + e.message)
+end sub
+
+
+sub onSeeking(evt as object)
+    addLine("      isSeeking -> " + evt.getData().toStr())
+end sub
+
+
+sub onStats(evt as object)
+    s = evt.getData()
+    addLine("      stats: startup=" + Str(s.startupMs).Trim() + "ms rebuffers=" + Str(s.rebufferCount).Trim() + " stalled=" + Str(s.rebufferMs).Trim() + "ms dropped=" + Str(s.droppedCount).Trim())
+end sub
+
+
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if m.facade = invalid then return false
     if m.disposed = true
-        addLine("      facade is disposed - reload the channel")
+        ' Back must still work, or the user is trapped with no way out.
+        if key = "back" then return false
+        addLine("      disposed - press back to exit")
         return true
     end if
 
@@ -276,16 +362,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
 
-        if key = "up"
-        r = m.facade.callFunc("seek", 99999)
-        addLine("      seek 99999 -> ok=" + r.ok.toStr() + " (clamps to duration-1)")
+    if key = "up"
+        ' Cycle HLS -> DASH -> MP4. Watch that each one reaches "playing".
+        nextIndex = m.mediaIndex + 1
+        if nextIndex >= MEDIA_ITEMS().count() then nextIndex = 0
+        loadMedia(nextIndex)
         return true
     end if
 
-    if key = "down"
+    if key = "back"
+        ' What a real client does on exit: release the Video node and its
+        ' observers, then let the channel close on the next press.
         m.facade.callFunc("dispose", invalid)
         m.disposed = true
-        addLine("      dispose() called - playback should stop")
+        addLine("      back -> dispose() - press back again to exit")
         return true
     end if
 

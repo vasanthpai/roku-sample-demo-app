@@ -15,16 +15,24 @@ build:
 	@zip -r -q $(ZIP_PATH) manifest source components vendor
 	@echo "Built $(ZIP_PATH)"
 
+# No curl -f here. The device explains a rejected install in the response
+# body, and -f throws that body away, leaving only a bare status code.
 deploy: build
 	@test -n "$(ROKU_HOST)" || { echo "ROKU_HOST is not set - create .env.local"; exit 1; }
 	@test -n "$(ROKU_PASSWORD)" || { echo "ROKU_PASSWORD is not set - create .env.local"; exit 1; }
 	@echo "Deploying demo to $(ROKU_HOST)"
-	@curl -s -S -f --digest -u rokudev:$(ROKU_PASSWORD) \
+	@out=$$(curl -s -S --digest -u rokudev:$(ROKU_PASSWORD) \
 		-F "mysubmit=Install" \
 		-F "archive=@$(ZIP_PATH)" \
-		http://$(ROKU_HOST)/plugin_install > /dev/null
-	@echo ""
-	@echo "Deployed to $(ROKU_HOST)"
+		-w '[http %{http_code}]' \
+		http://$(ROKU_HOST)/plugin_install); \
+	if echo "$$out" | grep -q "Install Success"; then \
+		echo "Deployed to $(ROKU_HOST)"; \
+	else \
+		echo "Deploy FAILED - device said:"; \
+		echo "$$out" | sed -e 's/<[^>]*>//g' | grep -viE '^[[:space:]]*$$' | head -12; \
+		exit 1; \
+	fi
 
 # Pull the freshly built SDK zip into vendor/, replacing any older version.
 #
