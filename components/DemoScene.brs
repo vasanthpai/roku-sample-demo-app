@@ -206,6 +206,22 @@ sub runChecks()
     m.lastSequence = 0
     facade.observeField("analyticsEvents", "onAnalytics")
 
+    ' ---- P5: tracks ---------------------------------------------------
+    for each fieldName in ["audioTracks", "subtitleTracks", "currentAudioTrack", "currentSubtitleTrack", "tracksReady", "captionMode"]
+        if facade.hasField(fieldName)
+            pass("field exposed: " + fieldName)
+        else
+            fail("field missing: " + fieldName)
+        end if
+    end for
+
+    m.audioIndex = -1
+    m.subtitleIndex = -1
+    facade.observeField("audioTracks", "onAudioTracks")
+    facade.observeField("subtitleTracks", "onSubtitleTracks")
+    facade.observeField("tracksReady", "onTracksReady")
+    facade.observeField("captionMode", "onCaptionMode")
+
     r = facade.callFunc("play", invalid)
     if r <> invalid and r.ok = true
         pass("play() accepted")
@@ -296,6 +312,13 @@ function MEDIA_ITEMS() as object
             title: "Sintel trailer (MP4)"
             url: "https://media.w3.org/2010/05/sintel/trailer.mp4"
         }
+        {
+            ' 10 audio renditions and 13 subtitle renditions - the only one of
+            ' these streams that actually exercises track selection.
+            label: "MULTI"
+            title: "Apple advanced (multi-track HLS)"
+            url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/main.m3u8"
+        }
     ]
 end function
 
@@ -305,6 +328,8 @@ sub loadMedia(index as integer)
     if index < 0 or index >= items.count() then return
 
     m.mediaIndex = index
+    m.audioIndex = -1
+    m.subtitleIndex = -1
     item = items[index]
     addLine("      --- loading " + item.label + " ---")
 
@@ -358,6 +383,68 @@ sub onAnalytics(evt as object)
 end sub
 
 
+sub onAudioTracks(evt as object)
+    tracks = evt.getData()
+    addLine("      audio tracks: " + Str(tracks.count()).Trim())
+    for each t in tracks
+        addLine("        [" + t.id + "] " + t.label + " (" + t.language + ")")
+    end for
+end sub
+
+sub onSubtitleTracks(evt as object)
+    tracks = evt.getData()
+    addLine("      subtitle tracks: " + Str(tracks.count()).Trim())
+    for each t in tracks
+        addLine("        [" + t.id + "] " + t.label + " (" + t.language + ")")
+    end for
+end sub
+
+sub onTracksReady(evt as object)
+    addLine("      tracksReady -> " + evt.getData().toStr())
+end sub
+
+sub onCaptionMode(evt as object)
+    addLine("      device captionMode -> " + Chr(34) + evt.getData() + Chr(34))
+end sub
+
+
+' Step through the audio tracks the stream actually offers.
+sub cycleAudio()
+    tracks = m.facade.audioTracks
+    if tracks.count() = 0
+        addLine("      no audio tracks yet - tracksReady=" + m.facade.tracksReady.toStr())
+        return
+    end if
+
+    m.audioIndex = (m.audioIndex + 1) mod tracks.count()
+    t = tracks[m.audioIndex]
+    r = m.facade.callFunc("selectAudioTrack", t.id)
+    addLine("      audio -> " + t.label + " ok=" + r.ok.toStr() + " " + r.message)
+end sub
+
+
+' Step through subtitles, including off. Index -1 means off.
+sub cycleSubtitle()
+    tracks = m.facade.subtitleTracks
+    if tracks.count() = 0
+        addLine("      no subtitle tracks yet - tracksReady=" + m.facade.tracksReady.toStr())
+        return
+    end if
+
+    m.subtitleIndex = m.subtitleIndex + 1
+    if m.subtitleIndex >= tracks.count() then m.subtitleIndex = -1
+
+    if m.subtitleIndex < 0
+        r = m.facade.callFunc("selectSubtitleTrack", "")
+        addLine("      subtitles -> OFF ok=" + r.ok.toStr() + " " + r.message)
+    else
+        t = tracks[m.subtitleIndex]
+        r = m.facade.callFunc("selectSubtitleTrack", t.id)
+        addLine("      subtitles -> " + t.label + " ok=" + r.ok.toStr() + " " + r.message)
+    end if
+end sub
+
+
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if m.facade = invalid then return false
@@ -387,6 +474,16 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "left"
         r = m.facade.callFunc("seek", int(m.facade.position) - 30)
         addLine("      seek -30 -> ok=" + r.ok.toStr() + " " + r.message)
+        return true
+    end if
+
+    if key = "down"
+        cycleAudio()
+        return true
+    end if
+
+    if key = "play"
+        cycleSubtitle()
         return true
     end if
 
