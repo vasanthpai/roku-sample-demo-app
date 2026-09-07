@@ -215,6 +215,47 @@ sub runChecks()
         end if
     end for
 
+    ' ---- P6: theming --------------------------------------------------
+    for each fieldName in ["theme", "themeWarnings"]
+        if facade.hasField(fieldName)
+            pass("field exposed: " + fieldName)
+        else
+            fail("field missing: " + fieldName)
+        end if
+    end for
+
+    ' Defaults must be in place before any client call.
+    if facade.theme.colors.primary = "0x3FBAC3FF"
+        pass("theme defaults applied at init")
+    else
+        fail("theme default primary was " + facade.theme.colors.primary)
+    end if
+
+    ' A partial override keeps every other token, and a pkg:/ asset is
+    ' refused with a reason rather than silently loading nothing.
+    r = facade.callFunc("setTheme", {
+        colors: { primary: "#E50914", background: "#1A0000" }
+        assets: { logo: "pkg:/images/logo.png" }
+    })
+
+    if facade.theme.colors.primary = "0xE50914FF"
+        pass("client colour applied, alpha added")
+    else
+        fail("primary was " + facade.theme.colors.primary)
+    end if
+
+    if facade.theme.colors.text = "0xFFFFFFFF"
+        pass("untouched tokens kept their defaults")
+    else
+        fail("text was overwritten: " + facade.theme.colors.text)
+    end if
+
+    if r.warnings.count() = 1 and r.warnings[0].reason = "pkgPathNotSupported"
+        pass("pkg:/ asset refused with a reason")
+    else
+        fail("pkg:/ asset was not reported")
+    end if
+
     m.audioIndex = -1
     m.subtitleIndex = -1
     facade.observeField("audioTracks", "onAudioTracks")
