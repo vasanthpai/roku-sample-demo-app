@@ -1,13 +1,19 @@
 ' ==========================================================================
-' Which scene to launch:
+' Which scene to launch. Change the one line below and re-deploy.
 '
-'   "MinimalScene" - smallest correct integration. Seven steps, console only.
-'                    This is the reference a client copies.
+'   "MinimalScene" - THE REFERENCE INTEGRATION. Read this one.
 '
-'   "DemoScene"    - full validation harness. PASS/FAIL checklist on screen,
-'                    seek and teardown bound to the remote.
+'                    The smallest correct client, commented as client
+'                    documentation: library handshake, branding, observers,
+'                    load, play, focus handover, teardown. Console only -
+'                    everything on screen is drawn by the SDK itself, which
+'                    is the point.
 '
-' Change the one line below and re-deploy.
+'   "DemoScene"    - validation harness. PASS/FAIL checklist on screen and
+'                    the leftover remote keys bound to format and track
+'                    cycling. Asserts the whole public surface, P0-P7.
+'                    Useful for catching SDK regressions; NOT a model of
+'                    good client structure.
 ' ==========================================================================
 function SCENE_NAME() as string
     return "DemoScene"

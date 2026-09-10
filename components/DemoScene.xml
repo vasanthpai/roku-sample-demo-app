@@ -5,16 +5,29 @@
         <!-- id becomes the node prefix: "rbp" -> rbp:rbpPlayerFacade -->
         <ComponentLibrary id="rbp" />
 
+        <!-- The harness draws its diagnostics ON TOP of the player, so it
+             has to stay out of the regions the SDK owns.
+
+             The player puts the age rating bug top-left, inside a 5% safe
+             inset - roughly x 24-94, y 36-70 on a 720p canvas. This column
+             used to start at y=60 and sat directly on it. It now begins
+             below that band.
+
+             The SDK is not at fault here and there is nothing to fix on its
+             side: it draws inside its own bounds, and those bounds are the
+             whole screen because that is how this demo sizes it. Any client
+             overlaying their own chrome on a full-screen player has to make
+             the same allowance. -->
         <Label id="titleLabel" text="RoboPlayer SDK - validation"
-               translation="[80, 60]" color="0xFFFFFFFF"
+               translation="[80, 96]" color="0xFFFFFFFF"
                font="font:MediumBoldSystemFont" />
 
         <Label id="statusLabel" text="starting..."
-               translation="[80, 110]" color="0x9CA3AFFF"
+               translation="[80, 140]" color="0x9CA3AFFF"
                font="font:SmallestSystemFont" />
 
         <Label id="resultsLabel" text="" wrap="true"
-               width="1000" translation="[80, 160]"
+               width="1000" translation="[80, 185]"
                color="0xE5E7EBFF" font="font:SmallestSystemFont" />
 
         <!-- The Facade is a Group - it IS the player view. -->

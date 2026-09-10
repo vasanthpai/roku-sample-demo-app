@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Minimal RoboPlayer SDK integration.
+    RoboPlayer SDK - reference integration.
 
-    The smallest correct client. Everything here is required; nothing is
-    decoration. Watch the console for the flow:  telnet <ROKU_IP> 8085
+    The smallest correct client, as of P7. Everything here is required;
+    nothing is decoration. Watch it run:  telnet <ROKU_IP> 8085
 
-    Note that uri is NOT set here - MinimalScene.brs sets it after the
-    loadStatus observer is registered.
+    TWO THINGS TO NOTICE:
+
+    1. `uri` is NOT set here. MinimalScene.brs sets it only after the
+       loadStatus observer is registered - a local zip can reach "ready"
+       before init() returns, and an observer added afterwards never fires.
+
+    2. The `id` is what names the component. "rbp" is why the player is
+       created as "rbp:rbpPlayerFacade". Change it to "player" and the
+       CreateObject string becomes "player:rbpPlayerFacade". The prefix is
+       YOUR choice, not the SDK's.
+
+    Nothing else belongs in this scene. The Facade is the entire player -
+    video, controls, scrubber, overlay - and it is added from code so that
+    it is only created once the library reports ready.
 -->
 <component name="MinimalScene" extends="Scene">
     <script type="text/brightscript" uri="MinimalScene.brs" />
