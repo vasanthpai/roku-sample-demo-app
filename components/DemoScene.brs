@@ -1,5 +1,5 @@
 ' ==========================================================================
-' RoboPlayer SDK - validation harness  (P0 - P7)
+' RoboPlayer SDK - validation harness  (P0 - P9)
 '
 ' This is NOT the file to copy. Copy MinimalScene.brs - it is the reference
 ' integration, written in the order a client actually writes it.
@@ -19,24 +19,30 @@
 '   P5   audio + subtitle enumeration and selection
 '   P6   theme deep-merge, colour normalisation, asset rejection warnings
 '   P7   controls overlay, key routing, trick play, auto-hide, rating bug
+'   P9   button row (rewind, play/pause, forward, Audio & Subtitles),
+'        track panel, two-row overlay focus
 '
 ' --------------------------------------------------------------- the key map
 '
-' From P7 the SDK owns the transport keys. What is left here is harness-only.
+' From P9 the SDK owns playback AND track selection. Only one harness key
+' is left.
 '
 '   OK, play              SDK    play / pause
 '   left, right           SDK    skip by skipInterval
-'   rewind, fastforward   SDK    trick play, 2x -> 16x
+'   rewind, fastforward   SDK    trick play, indicator 2x/3x/4x
+'   down                  SDK    onto the button row, landing on play/pause
+'   left, right (on row)  SDK    walk the row; OK activates the button
+'   up (on row)           SDK    back to the progress bar
+'   options (*)           SDK    open the Audio & Subtitles panel directly
 '   back (1st press)      SDK    hide the controls
 '
 '   back (2nd press)      demo   dispose() then exit
 '   up                    demo   cycle stream format (HLS/DASH/MP4/MULTI)
-'   down                  demo   cycle audio track
-'   options (*)           demo   cycle subtitle track
 '
-' NOTE `options`. Subtitle cycling used to be on `play`; the SDK claims that
-' key as play/pause now, so it moved. Any client that had bound `play`
-' themselves has to do the same.
+' The audio and subtitle cycling this harness used to bind on `down` and
+' `options` is gone. The SDK claims both keys now, so those handlers could
+' never fire - and the panel does the same job properly, with names instead
+' of blind cycling.
 '
 ' Keys the SDK declines bubble up to this scene. They only arrive while the
 ' controls are VISIBLE - with them hidden the SDK claims every key to wake
@@ -309,8 +315,6 @@ sub runChecks()
         fail("pkg:/ asset was not reported")
     end if
 
-    m.audioIndex = -1
-    m.subtitleIndex = -1
     facade.observeField("audioTracks", "onAudioTracks")
     facade.observeField("subtitleTracks", "onSubtitleTracks")
     facade.observeField("tracksReady", "onTracksReady")
@@ -440,8 +444,6 @@ sub loadMedia(index as integer)
     if index < 0 or index >= items.count() then return
 
     m.mediaIndex = index
-    m.audioIndex = -1
-    m.subtitleIndex = -1
     item = items[index]
     addLine("      --- loading " + item.label + " ---")
 
@@ -523,50 +525,14 @@ sub onCaptionMode(evt as object)
 end sub
 
 
-' Step through the audio tracks the stream actually offers.
-sub cycleAudio()
-    tracks = m.facade.audioTracks
-    if tracks.count() = 0
-        addLine("      no audio tracks yet - tracksReady=" + m.facade.tracksReady.toStr())
-        return
-    end if
-
-    m.audioIndex = (m.audioIndex + 1) mod tracks.count()
-    t = tracks[m.audioIndex]
-    r = m.facade.callFunc("selectAudioTrack", t.id)
-    addLine("      audio -> " + t.label + " ok=" + r.ok.toStr() + " " + r.message)
-end sub
-
-
-' Step through subtitles, including off. Index -1 means off.
-sub cycleSubtitle()
-    tracks = m.facade.subtitleTracks
-    if tracks.count() = 0
-        addLine("      no subtitle tracks yet - tracksReady=" + m.facade.tracksReady.toStr())
-        return
-    end if
-
-    m.subtitleIndex = m.subtitleIndex + 1
-    if m.subtitleIndex >= tracks.count() then m.subtitleIndex = -1
-
-    if m.subtitleIndex < 0
-        r = m.facade.callFunc("selectSubtitleTrack", "")
-        addLine("      subtitles -> OFF ok=" + r.ok.toStr() + " " + r.message)
-    else
-        t = tracks[m.subtitleIndex]
-        r = m.facade.callFunc("selectSubtitleTrack", t.id)
-        addLine("      subtitles -> " + t.label + " ok=" + r.ok.toStr() + " " + r.message)
-    end if
-end sub
-
 
 function onKeyEvent(key as string, press as boolean) as boolean
     ' Only keys the SDK did NOT claim reach this function. From P7 onward the
     ' player handles OK/play (pause), left/right (skip), rewind/fastforward
     ' (trick play) and the first `back` (hide controls) entirely on its own.
     '
-    ' What is left here is harness-only: switching stream format and cycling
-    ' tracks, which a real client would put behind its own menu.
+    ' What is left here is harness-only: switching stream format. Track
+    ' selection belongs to the SDK's own panel from P9.
     '
     ' Note these only arrive while the controls are on screen. With the
     ' overlay hidden the SDK swallows every key to wake it first, so a user
@@ -577,17 +543,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
         ' Back must still work, or the user is trapped with no way out.
         if key = "back" then return false
         addLine("      disposed - press back to exit")
-        return true
-    end if
-
-    if key = "down"
-        cycleAudio()
-        return true
-    end if
-
-    if key = "options"
-        ' Was `play` before P7; the SDK owns that key now as play/pause.
-        cycleSubtitle()
         return true
     end if
 

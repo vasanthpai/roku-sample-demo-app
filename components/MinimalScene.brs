@@ -2,7 +2,7 @@
 ' RoboPlayer SDK - reference integration
 '
 ' This file IS the client documentation. It is the smallest correct
-' integration of the SDK as of P7, in the order a client actually writes it.
+' integration of the SDK as of P9, in the order a client actually writes it.
 ' Everything here is either required or a decision you have to make; there is
 ' no decoration.
 '
@@ -132,6 +132,12 @@ sub applyBranding()
             showRatingBug: true     ' age rating, top-left, at the start
             ratingBugSeconds: 10    ' 0 = keep it up for the whole stream
             showTitle: false        ' off: your launch screen just showed it
+
+            ' The Audio & Subtitles button and panel. Leave it on unless you
+            ' are building your own track menu from audioTracks and
+            ' subtitleTracks - switching it off gives you back the down and
+            ' options keys.
+            showMenus: true
         }
 
         ' Assets are URLs, NEVER pkg:/ paths.
@@ -267,8 +273,16 @@ sub loadAndPlay()
     '
     '   OK / play            play-pause toggle
     '   left / right         skip by skipInterval (default 10s)
-    '   rewind / fastforward trick play, 2x -> 4x -> 8x -> 16x
-    '   back                 hide the controls (see onKeyEvent below)
+    '   rewind / fastforward trick play; indicator reads 2x / 3x / 4x
+    '   down                 onto the button row under the bar, landing on
+    '                        play/pause. left / right walk the row:
+    '                          rewind  play/pause  forward  Audio & Subtitles
+    '                        OK presses the highlighted one; up goes back.
+    '                        Rewind and forward SKIP by skipInterval - they
+    '                        do not scan, because inside a scan OK means
+    '                        "stop here"; scanning stays on the remote keys.
+    '   options (*)          open that panel directly, from anywhere
+    '   back                 close the panel / step up / hide the controls
     '   any key              wake the controls when they have auto-hidden
     '
     ' ...plus the controls overlay, its auto-hide, the scrubber, the time
@@ -287,9 +301,14 @@ end sub
 ' Only keys the SDK DECLINES reach this function. It bubbles them up the
 ' node tree, which is why this fires without the scene holding focus itself.
 '
-' Free for you today:  up, down, options (*), replay, and any key the SDK
-'                      has no meaning for.
-' Claimed by the SDK:  OK, play, left, right, rewind, fastforward.
+' Free for you today:  up, replay, and any key the SDK has no meaning for.
+' Claimed by the SDK:  OK, play, left, right, rewind, fastforward,
+'                      down (button row), options (* - track panel).
+'
+' down belongs to the SDK while the button row has anything in it; options
+' only while the track menu is on. Switch off controls.showMenus and options
+' comes back to you. Switch off showIcons AND showMenus and the row is empty,
+' so down comes back too.
 '
 ' `back` reaches you only on the SECOND press - the first one hides the
 ' controls. That is deliberate: it means `back` always does the least
